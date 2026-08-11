@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>家庭今日菜单｜纯前端共享版</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:"PingFang SC","Microsoft YaHei",sans-serif;}
+body{
+  background:#fff9ef;
+  background-image:url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100' height='100' fill='%23fff9ef'/%3E%3Cline x1='0' y1='25' x2='100' y2='25' stroke='%23ffddbb' stroke-width='0.5'/%3E%3Cline x1='0' y1='50' x2='100' y2='50' stroke='%23ffddbb' stroke-width='0.5'/%3E%3Cline x1='0' y1='75' x2='100' y2='75' stroke='%23ffddbb' stroke-width='0.5'/%3E%3C/svg%3E");
+  padding-bottom:80px;
+}
+.wrap{max-width:480px;margin:0 auto;padding:12px;}
+.card{
+  background:#fff;
+  border-radius:14px;
+  box-shadow:2px 3px 8px #00000018;
+  border:2px solid #ffddbc;
+  position:relative;
+  margin-bottom:14px;
+  overflow:hidden;
+}
+.card::before{
+  content:"";
+  position:absolute;
+  top:-6px;
+  left:20px;
+  width:80px;height:16px;
+  background:#ffc896;
+  opacity:0.7;
+  transform:rotate(-3deg);
+  z-index:1;
+}
+.card-inner{padding:14px;padding-top:20px;}
+h1,h2,h3{color:#d46b28;margin:8px 0;}
+.title-bar{text-align:center;margin:16px 0;font-size:22px;font-weight:bold;color:#c85c1a;}
+.food-card{position:relative;}
+.food-img{
+  width:100%;height:160px;
+  object-fit:cover;
+  border-radius:10px 10px 0 0;
+}
+.tag-cat{
+  position:absolute;top:12px;left:10px;
+  background:#ff8833;color:#fff;
+  padding:3px 8px;border-radius:6px;font-size:12px;z-index:2;
+}
+.tag-level{
+  position:absolute;top:12px;right:10px;
+  background:#ffffffcc;color:#b34c00;
+  padding:3px 8px;border-radius:6px;font-size:12px;z-index:2;
+}
+.food-name{font-size:17px;font-weight:bold;margin:6px 0;}
+.food-meta{font-size:13px;color:#666;margin:4px 0;}
+.food-ing{font-size:13px;color:#555;line-height:1.5;}
+.btn-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+button{
+  padding:7px 12px;border:none;border-radius:8px;
+  background:#ff9a44;color:#fff;font-size:14px;cursor:pointer;
+}
+button.secondary{background:#ffd2aa;color:#994400;}
+button.danger{background:#ee6644;}
+input,select,textarea{
+  width:100%;padding:9px;border:1px solid #ffccaa;border-radius:8px;
+  margin:6px 0;font-size:14px;background:#fffef8;
+}
+.tab-bar{
+  position:fixed;bottom:0;left:0;right:0;
+  max-width:480px;margin:0 auto;
+  display:flex;background:#fff;border-top:2px solid #ffddbc;
+}
+.tab-item{
+  flex:1;text-align:center;padding:10px 0;font-size:13px;color:#888;cursor:pointer;
+}
+.tab-item.active{color:#e67722;font-weight:bold;}
+.page{display:none;}
+.page.active{display:block;}
+.share-page{padding:20px;}
+.check-item{display:flex;align-items:center;gap:8px;margin:6px 0;}
+.modal{
+  position:fixed;inset:0;background:#00000044;display:flex;align-items:center;justify-content:center;
+  z-index:999;
+  padding:10px;
+}
+.modal-box{
+  width:100%;max-width:420px;background:#fff;padding:16px;border-radius:14px;border:2px solid #ffccaa;
+  max-height:85vh;
+  overflow-y:auto;
+}
+.hide{display:none !important;}
+.copy-tip{position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);background:#333;color:#fff;padding:10px 16px;border-radius:8px;z-index:1000;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="shareView" class="share-page hide">
+    <div class="wrap">
+      <div class="title-bar">📋分享菜谱</div>
+      <div id="shareMenuBox"></div>
+      <div class="btn-row" style="justify-content:center;margin-top:20px;flex-direction:column;">
+        <button id="btnImportShare">导入菜谱（支持合并）</button>
+        <button onclick="location.href='./menu.html'">返回我的菜单</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="mainApp">
+    <div class="wrap">
+      <div class="title-bar">🍳今日菜单小程序</div>
+
+      <div id="page1" class="page active">
+        <div class="btn-row">
+          <button id="btnAddRecipe">➕新增菜谱</button>
+          <button class="secondary" id="btnShareAll">分享全部菜谱库</button>
+        </div>
+        <div id="recipeList"></div>
+      </div>
+
+      <div id="page2" class="page">
+        <div class="card">
+          <div class="card-inner">
+            <h3>🎲随机点菜</h3>
+            <select id="randCatFilter">
+              <option value="">全部分类</option>
+              <option value="素菜">素菜</option>
+              <option value="荤菜">荤菜</option>
+              <option value="汤">汤</option>
+              <option value="主食">主食</option>
+              <option value="凉菜">凉菜</option>
+            </select>
+            <button id="btnRand3">随机抽取3道菜</button>
+            <div id="randResult"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="page3" class="page">
+        <div class="card">
+          <div class="card-inner">
+            <h3>✅勾选生成今日菜单</h3>
+            <div id="checkListBox"></div>
+            <button id="btnGenMenu">生成今日菜单</button>
+            <div id="todayMenuOut"></div>
+            <div id="shopListBox"></div>
+            <button id="btnShareLink">🔗分享选中菜单</button>
+            <div id="shareUrlBox"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="page4" class="page">
+        <div class="card">
+          <div class="card-inner">
+            <h3>⚙️我的</h3>
+            <p>所有数据保存在本机浏览器</p>
+            <p>和朋友交换菜谱：生成链接互相发送，打开即可合并菜谱</p>
+            <button id="btnReset">重置为默认菜谱（清空本地新增）</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <div class="tab-item active" data-page="page1">📖菜谱</div>
+      <div class="tab-item" data-page="page2">🎲随机</div>
+      <div class="tab-item" data-page="page3">📋今日菜单</div>
+      <div class="tab-item" data-page="page4">👤我的</div>
+    </div>
+  </div>
+
+  <div id="modalRecipe" class="modal hide">
+    <div class="modal-box">
+      <h3 id="modalTitle">新增菜谱</h3>
+      <input type="hidden" id="editId"/>
+      <label>菜名</label>
+      <input id="inpName" placeholder="菜名"/>
+      <label>分类</label>
+      <select id="inpCat">
+        <option value="素菜">素菜</option>
+        <option value="荤菜">荤菜</option>
+        <option value="汤">汤</option>
+        <option value="主食">主食</option>
+        <option value="凉菜">凉菜</option>
+      </select>
+      <label>难度</label>
+      <select id="inpLevel">
+        <option value="简单">简单</option>
+        <option value="中等">中等</option>
+        <option value="困难">困难</option>
+      </select>
+      <label>食材（换行分隔）</label>
+      <textarea id="inpIng" rows="4" placeholder="食材，每行一条"></textarea>
+      <label>图片URL</label>
+      <input id="inpImg" placeholder="图片链接"/>
+      <div class="btn-row">
+        <button id="btnSaveRecipe">保存</button>
+        <button class="secondary" id="btnCloseModal">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 菜谱合并弹窗 -->
+  <div id="modalMerge" class="modal hide">
+    <div class="modal-box">
+      <h3>📥菜谱合并</h3>
+      <div id="mergeInfo"></div>
+      <div id="mergeConflictList"></div>
+      <div class="btn-row">
+        <button id="btnMergeConfirm">确认合并</button>
+        <button class="secondary" id="btnMergeCancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+const defaultRecipes = [
+  {id:1,name:"番茄炒蛋",cat:"素菜",level:"简单",ing:"番茄2个\n鸡蛋3个\n葱花适量\n盐少许\n糖少许",img:"https://images.unsplash.com/photo-1546069901-b9b1c5da84fd?w=600"},
+  {id:2,name:"可乐鸡翅",cat:"荤菜",level:"中等",ing:"鸡翅中10个\n可乐1罐\n生抽2勺\n老抽1勺\n姜片适量",img:"https://images.unsplash.com/photo-1604908176997-125798b9278d?w=600"},
+  {id:3,name:"红烧肉",cat:"荤菜",level:"中等",ing:"五花肉500g\n冰糖20g\n生抽2勺\n老抽1勺\n料酒1勺\n八角2个",img:"https://images.unsplash.com/photo-1623689046286-01d389b67b59?w=600"},
+  {id:4,name:"酸土豆丝",cat:"素菜",level:"简单",ing:"土豆2个\n干辣椒5个\n花椒少许\n醋2勺\n盐适量",img:"https://images.unsplash.com/photo-1518977676601-b53272c04240?w=600"},
+  {id:5,name:"麻婆豆腐",cat:"素菜",level:"中等",ing:"嫩豆腐1块\n肉末100g\n豆瓣1勺\n花椒粉适量\n葱花适量",img:"https://images.unsplash.com/photo-1582576163368-0f5255368b41?w=600"},
+  {id:6,name:"糖醋里脊",cat:"荤菜",level:"困难",ing:"里脊肉300g\n番茄酱3勺\n白糖2勺\n醋2勺\n淀粉适量\n鸡蛋1个",img:"https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=600"},
+  {id:7,name:"鱼香肉丝",cat:"荤菜",level:"中等",ing:"猪里脊200g\n木耳适量\n胡萝卜半根\n青椒1个\n豆瓣酱1勺\n醋2勺",img:"https://images.unsplash.com/photo-1512058564366-18510be2db19?w=600"},
+  {id:8,name:"蒜蓉西兰花",cat:"素菜",level:"简单",ing:"西兰花1颗\n大蒜5瓣\n盐适量\n蚝油1勺",img:"https://images.unsplash.com/photo-1459411552884-841db9b3cc2a?w=600"},
+  {id:9,name:"紫菜蛋花汤",cat:"汤",level:"简单",ing:"紫菜1片\n鸡蛋2个\n虾皮少许\n香油几滴\n葱花适量",img:"https://images.unsplash.com/photo-1547592180-85f173990554?w=600"},
+  {id:10,name:"蛋炒饭",cat:"主食",level:"简单",ing:"隔夜米饭2碗\n鸡蛋2个\n葱花适量\n盐适量\n生抽少许",img:"https://images.unsplash.com/photo-1603133857878-784a92d88791?w=600"},
+  {id:11,name:"凉拌黄瓜",cat:"凉菜",level:"简单",ing:"黄瓜2根\n大蒜3瓣\n醋2勺\n生抽1勺\n辣椒油1勺\n芝麻少许",img:"https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600"},
+  {id:12,name:"红烧排骨",cat:"荤菜",level:"中等",ing:"排骨500g\n冰糖15g\n生抽1勺\n老抽1勺\n料酒1勺\n姜片3片\n八角1个",img:"https://images.unsplash.com/photo-1544025162-d76694265947?w=600"}
+];
+
+const STORAGE_KEY = "home_menu_data";
+let appData = {recipes:[],todayCheckedIds:[]};
+let pendingImportData = null;
+
+function loadData(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(raw){
+    appData = JSON.parse(raw);
+  }else{
+    appData.recipes = JSON.parse(JSON.stringify(defaultRecipes));
+    saveData();
+  }
+}
+function saveData(){
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(appData));
+}
+
+document.querySelectorAll(".tab-item").forEach(tab=>{
+  tab.onclick = ()=>{
+    const pid = tab.dataset.page;
+    document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+    document.getElementById(pid).classList.add("active");
+    document.querySelectorAll(".tab-item").forEach(t=>t.classList.remove("active"));
+    tab.classList.add("active");
+    renderAll();
+  }
+})
+
+function renderRecipeList(){
+  const box = document.getElementById("recipeList");
+  box.innerHTML = "";
+  appData.recipes.forEach(r=>{
+    const div = document.createElement("div");
+    div.className = "card food-card";
+    div.innerHTML = `
+      <span class="tag-cat">${r.cat}</span>
+      <span class="tag-level">难度:${r.level}</span>
+      <img class="food-img" src="${r.img||''}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22160%22%3E%3Crect fill=%22%23ffeddd%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 fill=%22%23cc7744%22%3E无图片%3C/text%3E%3C/svg%3E'"/>
+      <div class="card-inner">
+        <div class="food-name">${r.name}</div>
+        <div class="food-meta">${r.cat}｜${r.level}</div>
+        <div class="food-ing">食材：<br/>${r.ing.replace(/\n/g,"<br/>")}</div>
+        <div class="btn-row">
+          <button class="btn-edit" data-id="${r.id}">编辑</button>
+          <button class="danger btn-del" data-id="${r.id}">删除</button>
+        </div>
+      </div>
+    `;
+    box.appendChild(div);
+  })
+  document.querySelectorAll(".btn-edit").forEach(b=>{
+    b.onclick=()=>openEditModal(Number(b.dataset.id));
+  })
+  document.querySelectorAll(".btn-del").forEach(b=>{
+    b.onclick=()=>{
+      const id = Number(b.dataset.id);
+      if(confirm("确定删除该菜谱？")){
+        appData.recipes = appData.recipes.filter(x=>x.id!==id);
+        saveData();renderAll();
+      }
+    }
+  })
+}
+
+const modal = document.getElementById("modalRecipe");
+document.getElementById("btnAddRecipe").onclick = ()=>openAddModal();
+document.getElementById("btnCloseModal").onclick = ()=>modal.classList.add("hide");
+
+function openAddModal(){
+  document.getElementById("modalTitle").innerText = "新增菜谱";
+  document.getElementById("editId").value = "";
+  document.getElementById("inpName").value = "";
+  document.getElementById("inpCat").value = "素菜";
+  document.getElementById("inpLevel").value = "简单";
+  document.getElementById("inpIng").value = "";
+  document.getElementById("inpImg").value = "";
+  modal.classList.remove("hide");
+}
+function openEditModal(id){
+  const r = appData.recipes.find(x=>x.id===id);
+  if(!r)return;
+  document.getElementById("modalTitle").innerText = "编辑菜谱";
+  document.getElementById("editId").value = id;
+  document.getElementById("inpName").value = r.name;
+  document.getElementById("inpCat").value = r.cat;
+  document.getElementById("inpLevel").value = r.level;
+  document.getElementById("inpIng").value = r.ing;
+  document.getElementById("inpImg").value = r.img||"";
+  modal.classList.remove("hide");
+}
+
+document.getElementById("btnSaveRecipe").onclick = function(){
+  const eid = document.getElementById("editId").value;
+  const name = document.getElementById("inpName").value.trim();
+  const cat = document.getElementById("inpCat").value;
+  const level = document.getElementById("inpLevel").value;
+  const ing = document.getElementById("inpIng").value.trim();
+  const img = document.getElementById("inpImg").value.trim();
+  if(!name){alert("请输入菜名");return;}
+  if(eid){
+    const idx = appData.recipes.findIndex(x=>x.id===Number(eid));
+    appData.recipes[idx] = {...appData.recipes[idx],name,cat,level,ing,img};
+  }else{
+    const newId = Date.now();
+    appData.recipes.push({id:newId,name,cat,level,ing,img});
+  }
+  saveData();modal.classList.add("hide");renderAll();
+}
+
+document.getElementById("btnRand3").onclick = function(){
+  const filterCat = document.getElementById("randCatFilter").value;
+  let list = [...appData.recipes];
+  if(filterCat) list = list.filter(x=>x.cat===filterCat);
+  if(list.length===0){
+    document.getElementById("randResult").innerHTML = "<p>没有符合条件的菜品</p>";
+    return;
+  }
+  for(let i=list.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [list[i],list[j]] = [list[j],list[i]];
+  }
+  const pick = list.slice(0,3);
+  let html = "<div style='margin-top:10px'>";
+  pick.forEach(d=>{
+    html += `<div class="card" style="margin:8px 0;padding:10px;">【${d.name}】${d.cat}｜${d.level}</div>`
+  })
+  html += "</div>";
+  document.getElementById("randResult").innerHTML = html;
+}
+
+function renderCheckList(){
+  const box = document.getElementById("checkListBox");
+  box.innerHTML = "";
+  appData.recipes.forEach(r=>{
+    const checked = appData.todayCheckedIds.includes(r.id)?"checked":"";
+    const div = document.createElement("div");
+    div.className = "check-item";
+    div.innerHTML = `<input type="checkbox" ${checked} data-fid="${r.id}" class="chk-food"/> <span>${r.name}(${r.cat})</span>`;
+    box.appendChild(div);
+  })
+  document.querySelectorAll(".chk-food").forEach(cb=>{
+    cb.onchange = function(){
+      const fid = Number(this.dataset.fid);
+      if(this.checked){
+        if(!appData.todayCheckedIds.includes(fid)) appData.todayCheckedIds.push(fid);
+      }else{
+        appData.todayCheckedIds = appData.todayCheckedIds.filter(x=>x!==fid);
+      }
+      saveData();
+    }
+  })
+}
+
+document.getElementById("btnGenMenu").onclick = function(){
+  const sel = appData.recipes.filter(r=>appData.todayCheckedIds.includes(r.id));
+  if(sel.length===0){alert("请先勾选菜品");return;}
+  let menuHtml = "<h4>🥘今日菜单</h4>";
+  let allIng = [];
+  sel.forEach(d=>{
+    menuHtml += `<div class="card" style="padding:10px;margin:6px 0;">${d.name}【${d.cat}】<br/>${d.ing.replace(/\n/g,"<br/>")}</div>`;
+    allIng.push(...d.ing.split("\n").filter(s=>s.trim()));
+  })
+  document.getElementById("todayMenuOut").innerHTML = menuHtml;
+  let shopHtml = "<h4>🛒食材购物清单</h4><ul>";
+  allIng.forEach(i=>shopHtml += `<li>${i}</li>`);
+  shopHtml += "</ul>";
+  document.getElementById("shopListBox").innerHTML = shopHtml;
+}
+
+// 分享选中菜单
+document.getElementById("btnShareLink").onclick = function(){
+  const sel = appData.recipes.filter(r=>appData.todayCheckedIds.includes(r.id));
+  if(sel.length===0){alert("先勾选生成菜单");return;}
+  createShareLink(sel,"menu");
+}
+// 分享全部菜谱库
+document.getElementById("btnShareAll").onclick = function(){
+  createShareLink([...appData.recipes],"full");
+}
+
+function createShareLink(data,type){
+  const payload = JSON.stringify({type:type,data:data});
+  const b64 = btoa(unescape(encodeURIComponent(payload)));
+  const loc = window.location.href.split("#")[0].split("?")[0];
+  const shareUrl = `${loc}?share=${b64}`;
+  document.getElementById("shareUrlBox").innerHTML = `<div style="margin:8px 0;"><input value="${shareUrl}" readonly id="shareInput"/><button id="btnCopyUrl">复制链接</button></div>`;
+  document.getElementById("btnCopyUrl").onclick = async ()=>{
+    await navigator.clipboard.writeText(shareUrl);
+    showTip("链接已复制，可以发给好友");
+  }
+}
+
+function showTip(text){
+  const t = document.createElement("div");
+  t.className = "copy-tip";t.innerText=text;document.body.appendChild(t);
+  setTimeout(()=>t.remove(),1200);
+}
+
+function parseShareParam(){
+  const usp = new URLSearchParams(window.location.search);
+  const s = usp.get("share");
+  if(!s) return null;
+  try{
+    const json = decodeURIComponent(escape(atob(s)));
+    return JSON.parse(json);
+  }catch(e){
+    console.error(e);
+    return null;
+  }
+}
+
+function renderShareView(shareData){
+  document.getElementById("shareView").classList.remove("hide");
+  document.getElementById("mainApp").classList.add("hide");
+  pendingImportData = shareData.data;
+  let html = "";
+  shareData.data.forEach(d=>{
+    html += `
+    <div class="card food-card">
+      <span class="tag-cat">${d.cat}</span>
+      <span class="tag-level">难度:${d.level}</span>
+      <img class="food-img" src="${d.img||''}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22160%22%3E%3Crect fill=%22%23ffeddd%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 fill=%22%23cc7744%22%3E无图片%3C/text%3E%3C/svg%3E'"/>
+      <div class="card-inner">
+        <div class="food-name">${d.name}</div>
+        <div class="food-ing">食材：<br/>${d.ing.replace(/\n/g,"<br/>")}</div>
+      </div>
+    </div>`
+  })
+  document.getElementById("shareMenuBox").innerHTML = html;
+}
+
+// 合并菜谱逻辑
+document.getElementById("btnImportShare").onclick = function(){
+  if(!pendingImportData) return;
+  runMerge(pendingImportData);
+}
+const mergeModal = document.getElementById("modalMerge");
+document.getElementById("btnMergeCancel").onclick = ()=>mergeModal.classList.add("hide");
+
+function runMerge(importList){
+  const localList = appData.recipes;
+  const newItems = [];
+  const conflictItems = [];
+  importList.forEach(importItem=>{
+    const localItem = localList.find(l=>l.name === importItem.name);
+    if(!localItem){
+      newItems.push(importItem);
+    }else{
+      conflictItems.push({local:localItem,remote:importItem});
+    }
+  })
+  let infoHtml = `<p>本次导入：新增菜品${newItems.length}道；重名冲突${conflictItems.length}道</p>`;
+  let conflictHtml = "";
+  conflictItems.forEach((c,idx)=>{
+    conflictHtml += `<div style="border:1px solid #ffccaa;padding:8px;margin:6px 0;">
+    <p>菜品：${c.local.name}</p>
+    <label><input type="radio" name="sel_${idx}" value="local" checked>保留本地版本</label>
+    <label><input type="radio" name="sel_${idx}" value="remote">使用对方新版本</label>
+    </div>`
+  })
+  document.getElementById("mergeInfo").innerHTML = infoHtml;
+  document.getElementById("mergeConflictList").innerHTML = conflictHtml;
+  mergeModal.classList.remove("hide");
+
+  document.getElementById("btnMergeConfirm").onclick = function(){
+    // 先新增无冲突菜品
+    newItems.forEach(item=>{
+      item.id = Date.now()+Math.random();
+      appData.recipes.push(item);
+    })
+    //处理冲突
+    conflictItems.forEach((c,idx)=>{
+      const sel = document.querySelector(`input[name="sel_${idx}"]:checked`).value;
+      const pos = appData.recipes.findIndex(x=>x.name === c.local.name);
+      if(sel === "remote"){
+        appData.recipes[pos] = {...c.remote, id:appData.recipes[pos].id};
+      }
+    })
+    saveData();
+    mergeModal.classList.add("hide");
+    showTip("菜谱合并完成！");
+    setTimeout(()=>{
+      window.location.href = window.location.pathname;
+    },1200);
+  }
+}
+
+document.getElementById("btnReset").onclick = function(){
+  if(confirm("确定重置为默认菜谱，所有自行新增菜品会清空！")){
+    appData.recipes = JSON.parse(JSON.stringify(defaultRecipes));
+    appData.todayCheckedIds = [];
+    saveData();renderAll();
+  }
+}
+
+function renderAll(){
+  renderRecipeList();
+  renderCheckList();
+}
+
+loadData();
+const sharePayload = parseShareParam();
+if(sharePayload){
+  renderShareView(sharePayload);
+}else{
+  renderAll();
+}
+</script>
+</div>
+</body>
+</html>
