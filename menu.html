@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<!-- 新增：禁止浏览器缓存，解决手机缓存旧页面 -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>家庭菜单助手</title>
 <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+<!-- LZ字符串压缩库，用来缩短URL参数 -->
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,SimHei;}
 body{
@@ -164,7 +165,6 @@ textarea{min-height:90px;resize:vertical;}
   <div v-if="pageIndex === 0">
     <div class="header">
       <h1>📖 我的菜谱本</h1>
-      <button class="share-btn" style="position:absolute;right:0;top:16px;" @click="shareCookbookAll">分享菜谱库</button>
     </div>
     <input class="search-box" placeholder="搜索菜名..." v-model="searchKey">
     <div class="tab-row">
@@ -216,7 +216,7 @@ textarea{min-height:90px;resize:vertical;}
   <div v-if="pageIndex === 2">
     <div class="header">
       <h1>📋 今日菜单</h1>
-      <button class="share-btn" style="position:absolute;right:0;top:16px;" @click="shareTodayMenu">分享</button>
+      <button class="share-btn" style="position:absolute;right:0;top:16px;" @click="shareTodayMenu">分享菜单</button>
     </div>
     <div style="margin:16px 0;">
       <p>已选{{todayMenu.length}}道菜，点击菜品移除</p>
@@ -291,7 +291,6 @@ textarea{min-height:90px;resize:vertical;}
         </div>
       </div>
     </div>
-    <button class="orange-btn" style="margin-top:30px;" @click="shareCookbookAll">分享我的全部菜谱&菜单</button>
   </div>
 
   <!-- 新增菜品弹窗 -->
@@ -323,7 +322,7 @@ textarea{min-height:90px;resize:vertical;}
       <div class="input-item">
         <label>菜品图片（填写网络图片链接，留空则无图）</label>
         <input type="text" v-model="form.img" placeholder="粘贴网络图片地址，不填不显示图片">
-        <p style="font-size:13px;color:#999;margin-top:4px;">⚠️不再支持本地相册上传，防止网页崩溃</p>
+        <p style="font-size:13px;color:#999;margin-top:4px;">⚠️仅支持网络图片链接</p>
       </div>
       <div class="btn-group">
         <button class="btn-cancel" @click="popShow=false">取消</button>
@@ -369,7 +368,6 @@ data(){
     form:{name:'',type:'素菜',diff:'简单',material:'',img:''},
     dishList:[],
     todayMenu:[],
-    // 12道初始示例菜谱
     defaultDishes:[
       {id:"d1",name:"番茄炒蛋",type:"素菜",diff:"简单",material:"番茄、鸡蛋、盐、白糖",img:""},
       {id:"d2",name:"红烧排骨",type:"荤菜",diff:"中等",material:"排骨、冰糖、生抽、老抽",img:""},
@@ -419,7 +417,6 @@ methods:{
     if(dish){
       this.dishList = JSON.parse(dish)
     }else{
-      // 无本地数据，加载初始12道菜谱
       this.dishList = JSON.parse(JSON.stringify(this.defaultDishes))
       this.saveLocal()
     }
@@ -502,37 +499,35 @@ methods:{
     return this.dishList.filter(s=>s.type===type).length
   },
 
-  // =========【优化后的超短分享逻辑】只传递ID，不再传输完整菜品=========
+  // 【压缩优化分享逻辑，仅分享今日菜单】
   shareTodayMenu(){
     const idArr = this.todayMenu.map(i=>i.id)
-    const paramStr = idArr.join(',')
-    const shareUrl = `${location.origin}${location.pathname}?sel=${encodeURIComponent(paramStr)}`
+    const rawText = idArr.join(',')
+    // LZ压缩
+    const compressed = LZString.compressToEncodedURIComponent(rawText)
+    const shareUrl = `${location.origin}${location.pathname}?m=${compressed}`
     navigator.clipboard.writeText(shareUrl)
-    alert('分享链接已复制！好友打开会自动勾选菜单（前提好友本地已有这些菜谱）')
-  },
-  shareCookbookAll(){
-    const dishIds = this.dishList.map(i=>i.id).join(',')
-    const menuIds = this.todayMenu.map(i=>i.id).join(',')
-    const shareUrl = `${location.origin}${location.pathname}?all=${encodeURIComponent(dishIds)}&sel=${encodeURIComponent(menuIds)}`
-    navigator.clipboard.writeText(shareUrl)
-    alert('完整清单链接已复制！链接长度大幅缩短')
+    alert('✅分享链接已复制！长度大幅压缩；好友打开会自动勾选菜单（需要本地已有对应菜谱）')
   },
 
-  // 读取分享链接参数
+  // 解析压缩分享链接
   readShareUrl(){
     const params = new URLSearchParams(location.search)
-    const selStr = params.get('sel')
-    const allStr = params.get('all')
-    if(!selStr && !allStr) return
-    const targetIds = selStr ? selStr.split(',') : []
-    // 匹配本地存在的菜品，设置今日菜单
-    this.todayMenu = this.dishList.filter(item=>targetIds.includes(item.id))
-    this.saveLocal()
-    if(this.todayMenu.length>0){
-      alert(`✅成功加载分享菜单，自动勾选${this.todayMenu.length}道本地已存在菜品`)
-      this.pageIndex = 2
-    }else if(targetIds.length>0){
-      alert('⚠️未找到对应菜品，你本地没有对方分享的菜谱，无法勾选菜单')
+    const compressStr = params.get('m')
+    if(!compressStr) return
+    try{
+      const raw = LZString.decompressFromEncodedURIComponent(compressStr)
+      const targetIds = raw.split(',')
+      this.todayMenu = this.dishList.filter(item=>targetIds.includes(item.id))
+      this.saveLocal()
+      if(this.todayMenu.length>0){
+        alert(`✅成功加载分享菜单，自动勾选${this.todayMenu.length}道菜品`)
+        this.pageIndex = 2
+      }else{
+        alert('⚠️未找到对应菜品，本地缺少对方分享的菜谱')
+      }
+    }catch(e){
+      console.log('分享参数解析失败',e)
     }
   }
 }
