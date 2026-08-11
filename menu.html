@@ -44,7 +44,17 @@ body{
   border-radius:16px;
   overflow:hidden;
 }
-.dish-img{height:180px;width:100%;object-fit:cover;background:#f8f8f8;}
+.dish-img{
+  height:180px;width:100%;object-fit:cover;background:#efefef;
+}
+.no-img-tip{
+  height:180px;width:100%;
+  background:#f5f5f5;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#999;
+}
 .dish-tag{
   position:absolute;
   top:8px;
@@ -109,13 +119,14 @@ body{
 }
 .input-item{margin:14px 0;}
 label{display:block;margin-bottom:6px;font-weight:bold;}
-input,select{
+input,select,textarea{
   width:100%;
   padding:12px;
   border:1px solid #ddd;
   border-radius:10px;
   font-size:16px;
 }
+textarea{min-height:90px;resize:vertical;}
 .btn-group{display:flex;gap:12px;margin-top:20px;}
 .btn-save{flex:1;padding:14px;border:none;background:#ff9c22;color:#fff;border-radius:10px;font-size:17px;}
 .btn-cancel{flex:1;padding:14px;border:1px solid #bbb;background:#fff;border-radius:10px;font-size:17px;}
@@ -163,12 +174,15 @@ input,select{
     <div class="dish-grid">
       <div class="dish-card" v-for="(item,idx) in showDishList" :key="idx" @click="openDetail(item)">
         <div style="position:relative;">
-          <img class="dish-img" :src="item.img||'https://picsum.photos/id/292/400/300'" onerror="this.src='https://picsum.photos/id/292/400/300'">
+          <div v-if="item.img">
+            <img class="dish-img" :src="item.img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          </div>
+          <div v-else class="no-img-tip">暂无菜品图片</div>
           <span class="dish-tag" :class="tagClass(item.type)">{{item.type}}</span>
         </div>
         <div class="dish-info">
           <div class="dish-name">{{item.name}}</div>
-          <div class="dish-desc">{{item.materialCount}}种食材</div>
+          <div class="dish-desc">{{item.material||'未填写食材'}}</div>
         </div>
       </div>
     </div>
@@ -213,7 +227,10 @@ input,select{
       <div class="dish-grid">
         <div class="dish-card" v-for="(item,idx) in showAllDish" :key="idx" @click="toggleSelectMenu(item)">
           <div style="position:relative;">
-            <img class="dish-img" :src="item.img||'https://picsum.photos/id/292/400/300'" onerror="this.src='https://picsum.photos/id/292/400/300'">
+            <div v-if="item.img">
+              <img class="dish-img" :src="item.img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            </div>
+            <div v-else class="no-img-tip">暂无菜品图片</div>
             <span class="dish-tag" :class="tagClass(item.type)">{{item.type}}</span>
             <span v-if="inTodayMenu(item.id)" style="position:absolute;right:8px;top:8px;background:#fff;border-radius:50%;width:26px;height:26px;text-align:center;font-weight:bold;">✓</span>
           </div>
@@ -296,14 +313,13 @@ input,select{
         </select>
       </div>
       <div class="input-item">
-        <label>食材数量</label>
-        <input type="number" v-model.number="form.materialCount">
+        <label>所需食材</label>
+        <textarea v-model="form.material" placeholder="填写食材，例如：方便面、鸡蛋、青菜"></textarea>
       </div>
       <div class="input-item">
-        <label>图片（支持粘贴网络链接 / 选择本地照片）</label>
-        <input type="text" v-model="form.img" placeholder="粘贴图片网络地址">
-        <input type="file" accept="image/*" capture="camera" @change="onFileSelect">
-        <p style="font-size:13px;color:#999;margin-top:4px;">⚠️本地照片仅临时生效，分享请使用网络图片链接</p>
+        <label>菜品图片（填写网络图片链接，留空则无图）</label>
+        <input type="text" v-model="form.img" placeholder="粘贴网络图片地址，不填不显示图片">
+        <p style="font-size:13px;color:#999;margin-top:4px;">⚠️不再支持本地相册上传，防止网页崩溃</p>
       </div>
       <div class="btn-group">
         <button class="btn-cancel" @click="popShow=false">取消</button>
@@ -346,9 +362,24 @@ data(){
     randomScope:[],
     popShow:false,
     editItem:null,
-    form:{name:'',type:'素菜',diff:'简单',materialCount:5,img:''},
+    form:{name:'',type:'素菜',diff:'简单',material:'',img:''},
     dishList:[],
     todayMenu:[],
+    // 12道初始示例菜谱
+    defaultDishes:[
+      {id:"d1",name:"番茄炒蛋",type:"素菜",diff:"简单",material:"番茄、鸡蛋、盐、白糖",img:""},
+      {id:"d2",name:"红烧排骨",type:"荤菜",diff:"中等",material:"排骨、冰糖、生抽、老抽",img:""},
+      {id:"d3",name:"紫菜蛋花汤",type:"汤",diff:"简单",material:"紫菜、鸡蛋、香油、盐",img:""},
+      {id:"d4",name:"炒方便面",type:"主食",diff:"简单",material:"方便面、鸡蛋、青菜、火腿肠",img:""},
+      {id:"d5",name:"凉拌黄瓜",type:"凉菜",diff:"简单",material:"黄瓜、蒜末、香醋、辣椒油",img:""},
+      {id:"d6",name:"土豆炖鸡块",type:"荤菜",diff:"中等",material:"鸡块、土豆、姜片、八角",img:""},
+      {id:"d7",name:"清炒油麦菜",type:"素菜",diff:"简单",material:"油麦菜、大蒜、盐",img:""},
+      {id:"d8",name:"冬瓜丸子汤",type:"汤",diff:"中等",material:"冬瓜、猪肉馅、葱花",img:""},
+      {id:"d9",name:"蛋炒饭",type:"主食",diff:"简单",material:"米饭、鸡蛋、胡萝卜、小葱",img:""},
+      {id:"d10",name:"凉拌木耳",type:"凉菜",diff:"简单",material:"干木耳、小米辣、生抽、醋",img:""},
+      {id:"d11",name:"鱼香肉丝",type:"荤菜",diff:"困难",material:"猪肉、胡萝卜、木耳、泡椒",img:""},
+      {id:"d12",name:"蒜蓉娃娃菜",type:"素菜",diff:"简单",material:"娃娃菜、大蒜、粉丝",img:""},
+    ]
   }
 },
 computed:{
@@ -378,11 +409,16 @@ mounted(){
   this.readShareUrl()
 },
 methods:{
-  // 本地存储读写
   loadLocalData(){
     const dish = localStorage.getItem('menu_dish')
     const menu = localStorage.getItem('menu_today')
-    if(dish) this.dishList = JSON.parse(dish)
+    if(dish){
+      this.dishList = JSON.parse(dish)
+    }else{
+      // 无本地数据，加载初始12道菜谱
+      this.dishList = JSON.parse(JSON.stringify(this.defaultDishes))
+      this.saveLocal()
+    }
     if(menu) this.todayMenu = JSON.parse(menu)
   },
   saveLocal(){
@@ -398,7 +434,7 @@ methods:{
   },
   openAddPop(){
     this.editItem=null
-    this.form={name:'',type:'素菜',diff:'简单',materialCount:5,img:''}
+    this.form={name:'',type:'素菜',diff:'简单',material:'',img:''}
     this.popShow=true
   },
   openDetail(item){
@@ -424,15 +460,6 @@ methods:{
     this.saveLocal()
     this.popShow=false
   },
-  onFileSelect(e){
-    const file = e.target.files[0]
-    if(!file)return
-    const reader = new FileReader()
-    reader.onload = res=>{
-      this.form.img = res.target.result
-    }
-    reader.readAsDataURL(file)
-  },
   toggleScope(t){
     const i = this.randomScope.indexOf(t)
     if(i>-1) this.randomScope.splice(i,1)
@@ -447,7 +474,6 @@ methods:{
       alert('菜谱数量不足！')
       return
     }
-    // 简单随机3道
     let result = []
     let temp = [...source]
     for(let i=0;i<3;i++){
@@ -471,48 +497,38 @@ methods:{
   countType(type){
     return this.dishList.filter(s=>s.type===type).length
   },
-  // =====分享核心函数（修复链接超长&损坏问题）=====
+
+  // =========【优化后的超短分享逻辑】只传递ID，不再传输完整菜品=========
   shareTodayMenu(){
-    const sendData = {
-      type:'menu',
-      data:this.todayMenu.map(i=>i.id)
-    }
-    const str = btoa(encodeURIComponent(JSON.stringify(sendData)))
-    const shareUrl = location.origin+location.pathname+'?share='+str
+    const idArr = this.todayMenu.map(i=>i.id)
+    const paramStr = idArr.join(',')
+    const shareUrl = `${location.origin}${location.pathname}?sel=${encodeURIComponent(paramStr)}`
     navigator.clipboard.writeText(shareUrl)
-    alert('分享链接已复制到剪贴板！直接发给好友')
+    alert('分享链接已复制！好友打开会自动勾选菜单（前提好友本地已有这些菜谱）')
   },
   shareCookbookAll(){
-    const sendData = {
-      type:'full',
-      dish:this.dishList,
-      menu:this.todayMenu.map(i=>i.id)
-    }
-    const str = btoa(encodeURIComponent(JSON.stringify(sendData)))
-    const shareUrl = location.origin+location.pathname+'?share='+str
+    const dishIds = this.dishList.map(i=>i.id).join(',')
+    const menuIds = this.todayMenu.map(i=>i.id).join(',')
+    const shareUrl = `${location.origin}${location.pathname}?all=${encodeURIComponent(dishIds)}&sel=${encodeURIComponent(menuIds)}`
     navigator.clipboard.writeText(shareUrl)
-    alert('完整菜谱分享链接已复制！')
+    alert('完整清单链接已复制！链接长度大幅缩短')
   },
-  // 打开页面读取分享链接数据
+
+  // 读取分享链接参数
   readShareUrl(){
     const params = new URLSearchParams(location.search)
-    const shareStr = params.get('share')
-    if(!shareStr) return
-    try{
-      const raw = decodeURIComponent(atob(shareStr))
-      const data = JSON.parse(raw)
-      if(data.type === 'menu'){
-        // 仅导入今日菜单
-        this.todayMenu = this.dishList.filter(s=>data.data.includes(s.id))
-      }else if(data.type === 'full'){
-        // 导入全部菜谱
-        this.dishList = data.dish
-        this.todayMenu = this.dishList.filter(s=>data.menu.includes(s.id))
-        this.saveLocal()
-      }
-      alert('✅成功加载他人分享的菜单！')
-    }catch(e){
-      console.error('分享链接解析失败',e)
+    const selStr = params.get('sel')
+    const allStr = params.get('all')
+    if(!selStr && !allStr) return
+    const targetIds = selStr ? selStr.split(',') : []
+    // 匹配本地存在的菜品，设置今日菜单
+    this.todayMenu = this.dishList.filter(item=>targetIds.includes(item.id))
+    this.saveLocal()
+    if(this.todayMenu.length>0){
+      alert(`✅成功加载分享菜单，自动勾选${this.todayMenu.length}道本地已存在菜品`)
+      this.pageIndex = 2
+    }else if(targetIds.length>0){
+      alert('⚠️未找到对应菜品，你本地没有对方分享的菜谱，无法勾选菜单')
     }
   }
 }
