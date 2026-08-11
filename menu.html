@@ -16,18 +16,16 @@ body{
   color:#443300;
 }
 .container{max-width:760px;margin:0 auto;padding:16px;}
-.header{text-align:center;padding:16px 0;position:relative;}
-.header h1{font-size:30px;color:#5a4000;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;}
+.header{text-align:left;padding:16px 0 20px;position:relative;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.header h1{font-size:32px;color:#5a4000;display:flex;align-items:center;gap:8px;font-weight:600;}
 .share-top-btn{
-  position:absolute;
-  right:0;
-  top:16px;
   background:linear-gradient(90deg,#ff8822,#ffbb22);
   color:#fff;
   border:none;
   border-radius:99px;
   padding:11px 18px;
   font-size:16px;
+  white-space:nowrap;
 }
 .search-box{
   background:#fff;
@@ -153,7 +151,7 @@ input,select,textarea{
 textarea{min-height:92px;resize:vertical;}
 .btn-group{display:flex;gap:12px;margin-top:22px;}
 .btn-save{flex:1;padding:14px;border:none;background:#ff9922;color:#fff;border-radius:12px;font-size:17px;}
-.btn-cancel{flex:1;padding:14px;border:1px solid #c9b878;background:#fff;border-radius:12px;font-size:17px;color:#554411;}
+.btn-cancel{flex:1;padding:14px;border:1px solid #c9b878;background:#fff;border-radius:12px;color:#554411;font-size:17px;}
 .btn-upload{
   width:100%;
   padding:12px;
@@ -317,7 +315,7 @@ textarea{min-height:92px;resize:vertical;}
   <div v-if="pageIndex === 2">
     <div class="header">
       <h1>📋 今日菜单</h1>
-      <button class="share-btn" style="position:absolute;right:0;top:16px;" @click="shareTodayMenu">分享菜单</button>
+      <button class="share-btn" @click="shareTodayMenu">分享菜单</button>
     </div>
     <p>已选{{todayMenu.length}}道菜，点击菜品勾选/移除</p>
     <div class="shop-list-bar" @click="showShopList=!showShopList">
@@ -508,6 +506,29 @@ textarea{min-height:92px;resize:vertical;}
 </div>
 
 <script>
+// 通用复制文本兼容函数（修复移动端复制失效）
+function copyUniversal(text){
+  return new Promise((resolve)=>{
+    if(navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(text).then(()=>resolve(true)).catch(()=>fallbackCopy(text,resolve));
+    }else{
+      fallbackCopy(text,resolve);
+    }
+  })
+}
+function fallbackCopy(text,cb){
+  let ta = document.createElement('textarea');
+  ta.value = text;
+  ta.readOnly = true;
+  ta.style.position='absolute';
+  ta.style.left='-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  cb(true);
+}
+
 const app = new Vue({
 el:'#app',
 data(){
@@ -526,7 +547,7 @@ data(){
     form:{name:'',type:'素菜',star:1,diff:'简单',material:'',img:''},
     dishList:[],
     todayMenu:[],
-    // 默认菜谱【仅保留你指定5道菜+图片链接】
+    // 默认菜谱【5道菜+图床链接】
     defaultDishes:[
       {
         id:"d1",name:"番茄炒蛋",type:"素菜",star:1,diff:"简单",
@@ -644,7 +665,6 @@ methods:{
     }else{
       this.form={name:'',type:'素菜',star:1,diff:'简单',material:'',img:''}
     }
-    // 根据星级同步难度文本
     this.$watch('form.star',v=>{
       if(v==1) this.form.diff='简单'
       if(v==2) this.form.diff='中等'
@@ -682,7 +702,6 @@ methods:{
       pool = pool.filter(x=>this.randomScope.includes(x.type))
     }
     if(pool.length===0){alert('范围内没有菜谱！');return;}
-    // 随机抽取3道，去重
     let res = [];
     while(res.length<3 && pool.length>0){
       let r = Math.floor(Math.random()*pool.length);
@@ -732,18 +751,25 @@ methods:{
       }
     }
   },
-  // 导出菜谱json
+  // =========【修复1】导出菜谱，移动端兼容下载BUG =========
   exportData(){
-    let str = JSON.stringify(this.dishList,null,2);
-    let blob = new Blob([str],{type:'application/json'});
-    let url = URL.createObjectURL(blob);
-    let a = document.createElement('a');
-    a.href = url;
-    a.download = "菜谱数据.json";
-    document.body.appendChild(a);
-    a.click();
-    URL.revokeObjectURL(url);
-    a.remove();
+    try{
+      let str = JSON.stringify(this.dishList,null,2);
+      let blob = new Blob([str],{type:'application/json;charset=utf-8'});
+      let blobUrl = URL.createObjectURL(blob);
+      let a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = "菜谱数据.json";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{
+        URL.revokeObjectURL(blobUrl);
+        document.body.removeChild(a);
+      },200);
+      alert("菜谱文件开始下载！如无弹出，请检查浏览器下载权限");
+    }catch(err){
+      alert("下载失败！请切换系统浏览器，不要使用微信内置浏览器");
+    }
   },
   // 导入合并菜谱json
   importData(e){
@@ -755,7 +781,6 @@ methods:{
       try{
         let incoming = JSON.parse(ev.target.result);
         if(!Array.isArray(incoming)) throw new Error();
-        // 合并逻辑：新id直接加入，重复id覆盖更新
         incoming.forEach(newDish=>{
           let existIdx = this.dishList.findIndex(d=>d.id===newDish.id);
           if(existIdx>-1){
@@ -770,24 +795,25 @@ methods:{
         alert('文件格式错误，请选择正确导出的【菜谱数据.json】');
       }
     }
-    // 清空input，防止重复选择同一文件无响应
     e.target.value = '';
   },
-  shareTodayMenu(){
+  // =========【修复2】今日菜单分享：复制完整文本 =========
+  async shareTodayMenu(){
     let names = this.todayMenu.map(id=>{
       let d = this.dishList.find(x=>x.id===id);
       return d?d.name:''
     }).filter(Boolean).join("\n");
     if(!names){alert('今日菜单为空');return;}
-    let shareTxt = `今日菜单：\n${names}`;
-    if(navigator.clipboard){
-      navigator.clipboard.writeText(shareTxt).then(()=>alert('菜单文本已复制剪贴板，可以直接发送！'))
-    }else{
-      alert(shareTxt)
-    }
+    let shareTxt = `🍽今日菜单：\n${names}\n来自家庭菜单助手`;
+    await copyUniversal(shareTxt);
+    alert("✅今日菜单已复制剪贴板，直接粘贴发给好友！");
   },
-  shareAllMenu(){
-    alert('菜谱图片无法跟随链接分享，可以在【我的】页面导出菜谱json文件发给好友导入合并')
+  // =========【修复3】分享菜谱库：生成分享链接并复制 =========
+  async shareAllMenu(){
+    const baseUrl = window.location.origin + window.location.pathname;
+    const shareText = `🍲家庭菜单助手分享\n网页地址：${baseUrl}\n使用方法：打开链接 → 进入【我的】页面，导入我发给你的【菜谱数据.json】文件即可加载全部菜谱`;
+    await copyUniversal(shareText);
+    alert("✅分享信息复制成功！\n请把【菜谱数据.json】文件一并发送给好友");
   }
 }
 })
